@@ -60,18 +60,29 @@ pub mod pallet {
     // Errors.
     #[pallet::error]
     pub enum Error<T> {
-        // TODO Part III
+        KittyCntOverflow,
+        ExceedMaxKittyOwned,
+        BuyerIsKittyOwner,
+        TransferToSelf,
+        KittyNotExist,
+        NotKittyOwner,
+        KittyNotForSale,
+        KittyBidPriceTooLow,
+        NotEnoughBalance,
     }
 
     // Events.
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
-        // TODO Part III
+        Created(T::AccountId, T::Hash),
+        PriceSet(T::AccountId, T::Hash, Option<BalanceOf<T>>),
+        Transferred(T::AccountId, T::AccountId, T::Hash),
+        Bought(T::AccountId, T::AccountId, T::Hash, BalanceOf<T>),
     }
 
     #[pallet::storage]
-    #[pallet::getter(fn all_kitties_count)]
+    #[pallet::getter(fn kitty_cnt)]
     pub(super) type KittyCnt<T: Config> = StorageValue<_, u64, ValueQuery>;
 
     #[pallet::storage]
@@ -98,7 +109,17 @@ pub mod pallet {
     #[pallet::call]
     impl<T: Config> Pallet<T> {
 
-        // TODO Part III: create_kitty
+        #[pallet::weight(100)]
+        pub fn create_kitty(origin: OriginFor<T>) -> DispatchResult {
+            let sender = ensure_signed(origin)?;
+            let kitty_id = Self::mint(&sender, None, None)?;
+
+            log::info!("A kitty is born with ID: {:?}", kitty_id);
+
+            Self::deposit_event(Event::Created(sender, kitty_id));
+
+            Ok(())
+        }
 
         // TODO Part IV: set_price
 
@@ -131,7 +152,31 @@ pub mod pallet {
             payload.using_encoded(blake2_128)
         }
 
-        // TODO Part III: mint
+        pub fn mint(
+            owner: &T::AccountId,
+            dna: Option<[u8; 16]>,
+            gender: Option<Gender>
+        ) -> Result<T::Hash, Error<T>> {
+            let kitty = Kitty::<T> {
+                dna: dna.unwrap_or_else(Self::gen_dna),
+                price: None,
+                gender: gender.unwrap_or_else(Self::gen_gender),
+                owner: owner.clone(),
+            };
+
+            let kitty_id = T::Hashing::hash_of(&kitty);
+
+            let new_cnt = Self::kitty_cnt().checked_add(1)
+                .ok_or(<Error<T>>::KittyCntOverflow)?;
+
+            <KittiesOwned<T>>::try_mutate(&owner, |kitty_vec| {
+                kitty_vec.try_push(kitty_id)
+            }).map_err(|_| <Error<T>>::ExceedMaxKittyOwned)?;
+
+            <Kitties<T>>::insert(kitty_id, kitty);
+            <KittyCnt<T>>::put(new_cnt);
+            Ok(kitty_id)
+        }
 
         // TODO Part IV: transfer_kitty_to
     }
