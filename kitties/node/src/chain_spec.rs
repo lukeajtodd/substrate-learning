@@ -7,6 +7,7 @@ use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{sr25519, Pair, Public};
 use sp_finality_grandpa::AuthorityId as GrandpaId;
 use sp_runtime::traits::{IdentifyAccount, Verify};
+use node_kitties_runtime::SubstrateKittiesConfig;
 
 // The URL for the telemetry server.
 // const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
@@ -145,6 +146,9 @@ fn testnet_genesis(
 		},
 		grandpa: GrandpaConfig {
 			authorities: initial_authorities.iter().map(|x| (x.1.clone(), 1)).collect(),
+		},
+		substrate_kitties: SubstrateKittiesConfig {
+			kitties: vec![],
 		},
 		sudo: SudoConfig {
 			// Assign network admin rights.
